@@ -2,17 +2,12 @@
 
 # Params
 NIC="eth0"
+NWORK="vault"
 IPPREFIX="192.168.1."
 PREFIX=consul
-SRVMAX=3
 
-# Re-create network
-docker network rm vault-consul
-docker network create \
-  --attachable \
-  --driver=bridge \
-  --subnet=${IPPREFIX}0/24 \
-  --gateway=${IPPREFIX}254 vault-consul
+# Note: Single digit here please - if more needed, need to amend script to cater
+SRVMAX=3
 
 # Build server list
 SRVLST=""
@@ -39,27 +34,43 @@ cat <<EOF > server.json
 EOF
 
 # Run Consul servers
-# NB. ACL disabled for initial test - needs enabling later
-#
+# NB. ACL disabled for initial test - needs enabling later!
 for srv in $(eval echo "{1..$SRVMAX}")
-do
-  # Copy latest config
-  mkdir -p /data/consul/${srv}/config
-  cp server.json /data/consul/${srv}/config/server.json
-  # Set up basic run command
-  DRUN="--name=consul${srv} -h consul${srv} --restart=unless-stopped --network vault-consul -e CONSUL_BIND_INTERFACE=${NIC} -v /data/consul/${srv}/data:/consul/data -v /data/consul/${srv}/config:/consul/config -v /data/consul/${srv}/logs:/consul/logs --ip ${IPPREFIX}${srv}"
-  # Add options
+do 
+  # Create command
+  DRUN=" \
+    --name consul${srv} \
+    -h consul${srv} \
+    -e CONSUL_BIND_INTERFACE=${NIC} \
+    -v /data/consul/${srv}/data:/consul/data \
+    -v /data/consul/${srv}/config:/consul/config \
+    -v /data/consul/${srv}/logs:/consul/logs \
+    --network ${NWORK} \
+    --ip ${IPPREFIX}${srv} \
+    "
+    #-p 1010${srv}:8500 \
+
+  # Add any relevant options (NB. not currently used)
   OPT=""
   case "$srv" in
-    1)
-      DRUN+=" -p 8500:8500"
-      ;;
     *)
       ;;
   esac
-  # Finish command
-  DRUN+=" consul agent --server ${OPT}"
-    # Start server
-  echo Starting server ${srv} ...
-  docker run -d ${DRUN}
+
+  # Finish run command
+  DRUN+=" consul agent --server ${OPT} --ui"
+
+  # Ensure directories are ready
+  mkdir -p /data/consul/$srv
+  mkdir /data/consul/$srv/data
+  mkdir /data/consul/$srv/config
+  mkdir /data/consul/$srv/logs
+
+  # Copy latest config
+  cp server.json /data/consul/$srv/config/server.json
+
+  # Start server
+  #echo DBG docker run -d ${DRUN} 
+  docker run -d ${DRUN} 
+
 done

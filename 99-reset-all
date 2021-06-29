@@ -1,0 +1,5 @@
+#!/bin/bash
+
+docker kill consul{1..3}
+docker rm consul{1..3}
+sudo rm /data/consul/* -rf
