@@ -41,15 +41,16 @@ do
   DRUN=" \
     --name consul${srv} \
     -h consul${srv} \
+    --restart=unless-stopped \
     -e CONSUL_BIND_INTERFACE=${NIC} \
     -v /data/consul/${srv}/data:/consul/data \
     -v /data/consul/${srv}/config:/consul/config \
     -v /data/consul/${srv}/logs:/consul/logs \
     --network ${NWORK} \
     --ip ${IPPREFIX}${srv} \
+    -p 1010${srv}:8500 \
     "
-    #-p 1010${srv}:8500 \
-
+    
   # Add any relevant options (NB. not currently used)
   OPT=""
   case "$srv" in
